@@ -8,7 +8,7 @@ use alloc::collections::BTreeMap;
 use sails_rs::{ service, program };
 use sails_rs::prelude::ActorId;
 use sails_rs::gstd::msg;
-use sails_rs::gstd::exec::block_timestamp;
+use sails_rs::gstd::exec::{block_timestamp}; // Import energy_balance
 
 // Fixed decimal constants
 const WAD: u128 = 1_000_000_000_000_000_000; // 18 decimals for calculations
@@ -749,6 +749,58 @@ impl LendingService {
 
     pub fn get_lender_interest_earned(&self, lender: ActorId) -> u128 {
         *self.get().lender_interest_earned.get(&lender).unwrap_or(&0)
+    }
+
+    // --- New Function 1: Get all borrowers and their full info ---
+    pub fn get_all_borrowers_info(&self) -> BTreeMap<ActorId, UserInfo> {
+        let storage = self.get();
+        let mut borrowers_info: BTreeMap<ActorId, UserInfo> = BTreeMap::new();
+
+        // We only care about users who actually have debt, so iterate over the debt map
+        for borrower_id in storage.debt.keys() {
+            let user_info = self.get_user_info(*borrower_id);
+            borrowers_info.insert(*borrower_id, user_info);
+        }
+        borrowers_info
+    }
+
+    // --- Modified Function: Admin withdraw funds (from total_liquidity) ---
+    pub fn admin_withdraw_funds(&mut self, amount_tvara: u128) {
+        let recipient = msg::source();
+        self.guard(|storage| {
+            assert_eq!(msg::source(), storage.admin, "Only admin can withdraw funds");
+            assert!(amount_tvara > 0, "Withdrawal amount must be greater than zero");
+            assert!(storage.total_liquidity >= amount_tvara, "Insufficient total liquidity for withdrawal");
+
+            // Convert the TVARA amount to VARA using the current TVARA price
+            // (amount_tvara * price_in_wad) / WAD -- this converts 12-decimal TVARA to 18-decimal VARA value
+            // then we convert 18-decimal VARA value to 12-decimal VARA amount (since VARA_UNIT is 12 decimals)
+            let vara_to_send = (amount_tvara * storage.tvara_price) / WAD; // Result is in VARA (12 decimals, matching VARA_UNIT)
+
+            storage.total_liquidity -= amount_tvara;
+
+            let sent = msg::send(recipient, (), vara_to_send);
+            assert!(sent.is_ok(), "Admin withdrawal failed or insufficient balance");
+        });
+    }
+
+    // --- New Function: Admin withdraw treasury funds ---
+    pub fn admin_withdraw_treasury(&mut self, amount_tvara: u128) {
+        let recipient = msg::source();
+        self.guard(|storage| {
+            assert_eq!(msg::source(), storage.admin, "Only admin can withdraw treasury funds");
+            assert!(amount_tvara > 0, "Withdrawal amount must be greater than zero");
+            assert!(storage.treasury >= amount_tvara, "Insufficient treasury balance for withdrawal");
+
+            // Convert the TVARA amount to VARA using the current TVARA price
+            let vara_to_send = (amount_tvara * storage.tvara_price) / WAD; // Result is in VARA (12 decimals)
+
+
+            storage.treasury -= amount_tvara;
+
+            let sent = msg::send(recipient, (), vara_to_send);
+            assert!(sent.is_ok(), "Admin treasury withdrawal failed or insufficient balance");
+        });
     }
 }
 
