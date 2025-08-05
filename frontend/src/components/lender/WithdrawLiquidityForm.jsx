@@ -1,6 +1,4 @@
-"use client"
-
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useProgram } from "../../contexts/ProgramContext"
 import { toTvara } from "../../utils/conversions"
 import Button from "../common/Button"
@@ -9,46 +7,20 @@ import LoadingOverlay from "../common/LoadingOverlay"
 export default function WithdrawLiquidityForm({ onSuccess }) {
   const { functions, txState } = useProgram()
   const [amountInput, setAmountInput] = useState("")
-  const [errorMsg, setErrorMsg] = useState("")
-  const [successMsg, setSuccessMsg] = useState("")
-
   const isThisActionLoading = txState.busy && txState.action === "withdraw"
 
-  // Auto-dismiss success message after 5 seconds
-  useEffect(() => {
-    if (successMsg) {
-      const timer = setTimeout(() => {
-        setSuccessMsg("")
-      }, 5000)
-      return () => clearTimeout(timer)
-    }
-  }, [successMsg])
-
   const handleWithdraw = async () => {
-    setErrorMsg("")
-    setSuccessMsg("")
-
     const amt = Number.parseFloat(amountInput)
-    if (isNaN(amt) || amt <= 0) {
-      setErrorMsg("Enter positive amount")
-      return
-    }
+    if (isNaN(amt) || amt <= 0) return // Just return, don't set local error
 
     try {
       const bigintAmt = toTvara(amt)
       await functions.withdraw(bigintAmt)
       setAmountInput("")
-      setSuccessMsg("Liquidity withdrawn successfully! Funds have been returned to your wallet.")
       onSuccess?.()
     } catch (err) {
       console.error(err)
-      let friendlyError = err?.message || "Withdrawal failed"
-      if (friendlyError.includes("InsufficientBalance")) {
-        friendlyError = "Insufficient liquidity balance to withdraw this amount."
-      } else if (friendlyError.includes("Paused")) {
-        friendlyError = "Protocol is currently paused. Please try again later."
-      }
-      setErrorMsg(friendlyError)
+      // Error is now handled by the modal through ProgramContext
     }
   }
 
@@ -68,26 +40,6 @@ export default function WithdrawLiquidityForm({ onSuccess }) {
             disabled={isThisActionLoading}
           />
         </div>
-
-        {errorMsg && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-              <p className="text-sm text-red-700 font-medium">Transaction Failed</p>
-            </div>
-            <p className="text-sm text-red-600 mt-1">{errorMsg}</p>
-          </div>
-        )}
-
-        {successMsg && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <p className="text-sm text-green-700 font-medium">Success!</p>
-            </div>
-            <p className="text-sm text-green-600 mt-1">{successMsg}</p>
-          </div>
-        )}
 
         <Button
           onClick={handleWithdraw}

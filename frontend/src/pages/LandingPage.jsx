@@ -1,7 +1,5 @@
-"use client"
-
 import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { useProgram } from "../contexts/ProgramContext"
 import Button from "../components/common/Button"
 import { LogOut } from "lucide-react"
@@ -83,11 +81,10 @@ export default function LandingPage() {
     <div className="min-h-screen min-w-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Navigation */}
       <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          isScrolled
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
             ? "bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm"
             : "bg-white/80 backdrop-blur-md border-b border-gray-200"
-        }`}
+          }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -98,7 +95,9 @@ export default function LandingPage() {
               <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">T</span>
               </div>
-              <span className="text-xl font-bold text-gray-900">TrustLend</span>
+              <Link to="/" className="text-gray-900 hover:text-blue-600 transition-colors">
+                <span className="text-xl font-bold text-gray-900">TrustLend</span>
+              </Link>
             </div>
 
             <div className="flex items-center space-x-4">
@@ -139,7 +138,7 @@ export default function LandingPage() {
                   </div>
                   <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 leading-tight">Borrow ↔ Lend ↔ Grow</h1>
                   <p className="text-xl text-gray-600 leading-relaxed">
-                    A First‑Class TVARA Lending Platform Built on Vara
+                    A First‑Class Defi Platform Built on Vara
                   </p>
                   <p className="text-lg text-gray-500">
                     No gate‑keepers. Trust‑minimized DeFi for borrowers and lenders with built‑in risk metrics like
@@ -602,13 +601,6 @@ export default function LandingPage() {
                   className="bg-white text-blue-600 hover:bg-gray-100 text-lg px-8 py-4 shadow-lg hover:shadow-xl"
                 >
                   {account ? "Launch App" : "Connect Wallet"}
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  className="border-white text-white hover:bg-white hover:text-blue-600 text-lg px-8 py-4 shadow-lg hover:shadow-xl"
-                >
-                  View Documentation
                 </Button>
               </div>
 

@@ -1,8 +1,6 @@
-"use client"
-
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useProgram } from "../../contexts/ProgramContext"
-import { toTvara } from "../../utils/conversions"
+import { toTvara, fromTvara } from "../../utils/conversions"
 import Button from "../common/Button"
 import LoadingOverlay from "../common/LoadingOverlay"
 
@@ -10,58 +8,75 @@ export default function WithdrawFundsForm({ onSuccess }) {
   const { functions, txState } = useProgram()
   const [amountInput, setAmountInput] = useState("")
   const [target, setTarget] = useState("") // 'liquidity' or 'treasury'
-  const [localErr, setLocalErr] = useState("")
-  const [localSuccess, setLocalSuccess] = useState("")
+  const [liquidityBalance, setLiquidityBalance] = useState(null)
+  const [treasuryBalance, setTreasuryBalance] = useState(null)
 
   const isThisActionLoading =
     txState.busy && (txState.action === "adminWithdrawFunds" || txState.action === "adminWithdrawTreasury")
 
-  // Auto-dismiss success message after 5 seconds
-  useEffect(() => {
-    if (localSuccess) {
-      const timer = setTimeout(() => {
-        setLocalSuccess("")
-      }, 5000)
-      return () => clearTimeout(timer)
+  const getTreasuryBalance = async () => {
+    try {
+      const balance = await functions.getTreasuryBalance()
+      const formattedBalance = fromTvara(balance || 0n)
+      setTreasuryBalance(formattedBalance.toFixed(2))
+      return balance
+    } catch (err) {
+      console.error("Error fetching treasury balance:", err)
+      setTreasuryBalance("0.0000")
+      return 0n
     }
-  }, [localSuccess])
+  }
+
+  const getTotalLiquidity = async () => {
+    try {
+      const liquidity = await functions.getTotalLiquidity()
+      const formattedLiquidity = fromTvara(liquidity || 0n)
+      setLiquidityBalance(formattedLiquidity.toFixed(2))
+      return liquidity
+    } catch (err) {
+      console.error("Error fetching total liquidity:", err)
+      setLiquidityBalance("0.0000")
+      return 0n
+    }
+  }
+
+  useEffect(() => {
+    const fetchBalances = async () => {
+      if (target === "liquidity") {
+        const liquidity = await getTotalLiquidity()
+        const formattedAmount = fromTvara(liquidity || 0n)
+        setAmountInput(formattedAmount > 0 ? formattedAmount.toFixed(2) : "")
+      } else if (target === "treasury") {
+        const treasury = await getTreasuryBalance()
+        const formattedAmount = fromTvara(treasury || 0n)
+        setAmountInput(formattedAmount > 0 ? formattedAmount.toFixed(2) : "")
+      }
+    }
+
+    if (target) {
+      fetchBalances()
+    }
+  }, [target])
 
   const handleWithdraw = async () => {
-    setLocalErr("")
-    setLocalSuccess("")
-
     const amt = Number.parseFloat(amountInput)
-    if (isNaN(amt) || amt <= 0) {
-      setLocalErr("Enter positive amount")
-      return
-    }
-    if (!target) {
-      setLocalErr("Select source")
-      return
-    }
+    if (isNaN(amt) || amt <= 0) return
+    if (!target) return
 
     try {
       const bigintAmt = toTvara(amt)
       if (target === "liquidity") {
         await functions.adminWithdrawFunds(bigintAmt)
-        setLocalSuccess(`Successfully withdrew ${amt} TVARA from liquidity pool! Funds transferred to admin wallet.`)
       } else {
         await functions.adminWithdrawTreasury(bigintAmt)
-        setLocalSuccess(`Successfully withdrew ${amt} TVARA from treasury! Funds transferred to admin wallet.`)
       }
       setAmountInput("")
       onSuccess?.()
+      // Optionally refetch balances after withdrawal
+      if (target === "liquidity") await getTotalLiquidity()
+      if (target === "treasury") await getTreasuryBalance()
     } catch (err) {
       console.error(err)
-      let friendlyError = err?.message || "Withdrawal failed"
-      if (friendlyError.includes("Unauthorized")) {
-        friendlyError = "You are not authorized to withdraw funds."
-      } else if (friendlyError.includes("InsufficientBalance")) {
-        friendlyError = "Insufficient funds in the selected source."
-      } else if (friendlyError.includes("Paused")) {
-        friendlyError = "Protocol is currently paused. Please try again later."
-      }
-      setLocalErr(friendlyError)
     }
   }
 
@@ -73,31 +88,42 @@ export default function WithdrawFundsForm({ onSuccess }) {
         />
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-4 text-black">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-3">Withdrawal Source</label>
           <div className="grid grid-cols-2 gap-3">
-            <label className="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
-              <input
-                type="radio"
-                name="source"
-                value="liquidity"
-                onChange={() => setTarget("liquidity")}
-                className="mr-2 text-blue-600"
-                disabled={isThisActionLoading}
-              />
-              <span className="text-sm font-medium">Liquidity Pool</span>
+            <label className="flex flex-col items-start p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  name="source"
+                  value="liquidity"
+                  onChange={() => setTarget("liquidity")}
+                  className="mr-2 text-blue-600"
+                  disabled={isThisActionLoading}
+                />
+                <span className="text-sm font-medium">Liquidity Pool</span>
+              </div>
+              <span className="text-xs text-gray-500 mt-1">
+                {liquidityBalance !== null ? `${liquidityBalance} TVARA` : "Tap to view Balance"}
+              </span>
             </label>
-            <label className="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
-              <input
-                type="radio"
-                name="source"
-                value="treasury"
-                onChange={() => setTarget("treasury")}
-                className="mr-2 text-blue-600"
-                disabled={isThisActionLoading}
-              />
-              <span className="text-sm font-medium">Treasury</span>
+
+            <label className="flex flex-col items-start p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  name="source"
+                  value="treasury"
+                  onChange={() => setTarget("treasury")}
+                  className="mr-2 text-blue-600"
+                  disabled={isThisActionLoading}
+                />
+                <span className="text-sm font-medium">Treasury</span>
+              </div>
+              <span className="text-xs text-gray-500 mt-1">
+                {treasuryBalance !== null ? `${treasuryBalance} TVARA` : "Tap to view Balance"}
+              </span>
             </label>
           </div>
         </div>
@@ -114,26 +140,6 @@ export default function WithdrawFundsForm({ onSuccess }) {
             disabled={isThisActionLoading}
           />
         </div>
-
-        {localErr && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-              <p className="text-sm text-red-700 font-medium">Transaction Failed</p>
-            </div>
-            <p className="text-sm text-red-600 mt-1">{localErr}</p>
-          </div>
-        )}
-
-        {localSuccess && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <p className="text-sm text-green-700 font-medium">Success!</p>
-            </div>
-            <p className="text-sm text-green-600 mt-1">{localSuccess}</p>
-          </div>
-        )}
 
         <Button
           variant="danger"

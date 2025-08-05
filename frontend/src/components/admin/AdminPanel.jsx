@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import { useProgram } from "../../contexts/ProgramContext"
 import { useNavigate } from "react-router-dom"
@@ -11,9 +9,20 @@ import { ss58ToActorId } from "../../utils/actorId"
 import { Shield, Settings, Users, AlertTriangle, DollarSign, Activity, LogOut } from "lucide-react"
 import LoadingOverlay from "../common/LoadingOverlay"
 import Button from "../common/Button"
+import TransactionModal from "../common/TransactionModal"
 
 export default function AdminPanel() {
-  const { account, publicKey, functions, txState, disconnectWallet, setDisconnectCallback } = useProgram()
+  const {
+    account,
+    publicKey,
+    functions,
+    txState,
+    disconnectWallet,
+    setDisconnectCallback,
+    transactionResult,
+    clearTransactionResult,
+    isWalletLoading,
+  } = useProgram()
   const [adminHex, setAdminHex] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [loadingRole, setLoadingRole] = useState(true)
@@ -27,44 +36,72 @@ export default function AdminPanel() {
     })
   }, [navigate, setDisconnectCallback])
 
-  // Redirect to dashboard if wallet is disconnected
+  // Only redirect if wallet loading is complete and no account
   useEffect(() => {
-    if (!account) {
+    if (!isWalletLoading && !account) {
       navigate("/dashboard")
     }
-  }, [account, navigate])
+  }, [account, navigate, isWalletLoading])
 
   useEffect(() => {
-    ;(async () => {
+    const checkAdminStatus = async () => {
+      if (!account || !functions.getAdmin || isWalletLoading) {
+        setIsAdmin(false)
+        setAdminHex(null)
+        setLoadingRole(false)
+        return
+      }
+
       setLoadingRole(true)
       try {
-        const [adminActor, userInfo] = await Promise.all([functions.getAdmin?.(), functions.getUserInfo?.()])
-        const acctHex = ss58ToActorId(account).toLowerCase()
-        const adminId = adminActor?.toString().toLowerCase() ?? ""
-        setAdminHex(adminId)
-        setIsAdmin(adminId && adminId === acctHex)
+        // Wait a bit for the connection to stabilize
+        await new Promise((resolve) => setTimeout(resolve, 500))
 
-        // Fetch protocol stats
-        const [utilization, tvaraPrice, borrowers] = await Promise.all([
-          functions.getUtilizationRate?.().catch(() => null),
-          functions.getTvaraPrice?.().catch(() => null),
-          functions.getAllBorrowersInfo?.().catch(() => {}),
+        const [adminActor, userInfo] = await Promise.all([
+          functions.getAdmin(),
+          functions.getUserInfo?.().catch(() => null),
         ])
 
-        setProtocolStats({
-          utilization,
-          tvaraPrice,
-          borrowerCount: Object.keys(borrowers || {}).length,
-        })
-      } catch (err) {
+        console.log("Account:", account)
+        const acctHex = ss58ToActorId(account).toLowerCase()
+        console.log("AdminPanel: fetched admin actor", adminActor, "for account", acctHex)
+
+        const adminId = adminActor?.toString().toLowerCase() ?? ""
+        setAdminHex(adminId)
+        const isAdminUser = adminId && adminId === acctHex
+        setIsAdmin(isAdminUser)
+
+        console.log("Admin check result:", { adminId, acctHex, isAdminUser })
+
+        // Only fetch protocol stats if user is admin
+        if (isAdminUser) {
+          const [utilization, tvaraPrice, borrowers] = await Promise.all([
+            functions.getUtilizationRate?.().catch(() => null),
+            functions.getTvaraPrice?.().catch(() => null),
+            functions.getAllBorrowersInfo?.().catch(() => {}),
+          ])
+
+          setProtocolStats({
+            utilization,
+            tvaraPrice,
+            borrowerCount: Object.keys(borrowers || {}).length,
+          })
+        }
+      } catch(err) {
         console.error("AdminPanel: failed to fetch admin info", err)
         setIsAdmin(false)
         setAdminHex(null)
       } finally {
         setLoadingRole(false)
       }
-    })()
-  }, [account, functions])
+    }
+
+    // Only check admin status if wallet is not loading
+    if (!isWalletLoading) {
+      const timer = setTimeout(checkAdminStatus, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [account, functions, publicKey, isWalletLoading])
 
   // Format public key for display (0x + first 4 + ... + last 4)
   const formatPublicKey = (pubKey) => {
@@ -72,13 +109,20 @@ export default function AdminPanel() {
     return `${pubKey.slice(0, 6)}...${pubKey.slice(-4)}`
   }
 
-  if (loadingRole) {
+  // Show loading while wallet is being restored or admin check is in progress
+  if (isWalletLoading || loadingRole) {
     return <LoadingOverlay message="Verifying admin permissions..." />
+  }
+
+  // Don't render anything if no account and wallet loading is complete
+  // The useEffect will handle navigation
+  if (!account) {
+    return null
   }
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-red-50 flex items-center justify-center">
+      <div className="min-h-screen min-w-screen bg-gradient-to-br from-purple-50 via-white to-red-50 flex items-center justify-center">
         <div className="max-w-md mx-auto text-center">
           <div className="bg-white rounded-2xl shadow-lg border border-red-200 p-8">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -262,6 +306,12 @@ export default function AdminPanel() {
             </div>
           </div>
         )}
+        {/* Transaction Modal */}
+        <TransactionModal
+          isOpen={!!transactionResult}
+          onClose={clearTransactionResult}
+          transaction={transactionResult}
+        />
       </div>
     </div>
   )

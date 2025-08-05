@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import { useProgram } from "../../contexts/ProgramContext"
 import { useNavigate } from "react-router-dom"
@@ -11,9 +9,20 @@ import BorrowersTable from "./BorrowersTable"
 import { DollarSign, TrendingUp, Users, BarChart3, ArrowUpRight, LogOut } from "lucide-react"
 import LoadingOverlay from "../common/LoadingOverlay"
 import Button from "../common/Button"
+import TransactionModal from "../common/TransactionModal"
 
 export default function LenderDashboard() {
-  const { account, publicKey, functions, txState, disconnectWallet, setDisconnectCallback } = useProgram()
+  const {
+    account,
+    publicKey,
+    functions,
+    txState,
+    disconnectWallet,
+    setDisconnectCallback,
+    transactionResult,
+    clearTransactionResult,
+    isWalletLoading,
+  } = useProgram()
   const [userInfo, setUserInfo] = useState(null)
   const [borrowers, setBorrowers] = useState({})
   const [util, setUtil] = useState(null)
@@ -28,12 +37,12 @@ export default function LenderDashboard() {
     })
   }, [navigate, setDisconnectCallback])
 
-  // Redirect to dashboard if wallet is disconnected
+  // Only redirect if wallet loading is complete and no account
   useEffect(() => {
-    if (!account) {
+    if (!isWalletLoading && !account) {
       navigate("/dashboard")
     }
-  }, [account, navigate])
+  }, [account, navigate, isWalletLoading])
 
   const refreshData = async () => {
     if (!account) return
@@ -54,8 +63,10 @@ export default function LenderDashboard() {
   }
 
   useEffect(() => {
-    refreshData()
-  }, [account, txState.lastMsg])
+    if (account && !isWalletLoading) {
+      refreshData()
+    }
+  }, [account, txState.lastMsg, isWalletLoading])
 
   const liquidityValue = userInfo?.lender_balance ? fromTvara(userInfo.lender_balance) : 0
   const interestEarned = userInfo?.lender_interest_earned ? fromTvara(userInfo.lender_interest_earned) : 0
@@ -68,8 +79,15 @@ export default function LenderDashboard() {
     return `${pubKey.slice(0, 6)}...${pubKey.slice(-4)}`
   }
 
-  if (loading) {
+  // Show loading while wallet is being restored or data is loading
+  if (isWalletLoading || (loading && account)) {
     return <LoadingOverlay message="Loading lender dashboard..." />
+  }
+
+  // Don't render anything if no account and wallet loading is complete
+  // The useEffect will handle navigation
+  if (!account) {
+    return null
   }
 
   return (
@@ -244,6 +262,8 @@ export default function LenderDashboard() {
           </p>
         </div>
       </div>
+      {/* Transaction Modal */}
+      <TransactionModal isOpen={!!transactionResult} onClose={clearTransactionResult} transaction={transactionResult} />
     </div>
   )
 }

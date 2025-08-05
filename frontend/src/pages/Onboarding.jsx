@@ -1,6 +1,4 @@
-"use client"
-
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { useProgram } from "../contexts/ProgramContext"
 import { useEffect } from "react"
 import { DollarSign, TrendingUp, Settings, ArrowRight, LogOut } from "lucide-react"
@@ -79,7 +77,9 @@ export default function OnboardingScreen({ isAdmin }) {
               <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">T</span>
               </div>
-              <span className="text-xl font-bold text-gray-900">TrustLend</span>
+              <Link to="/" className="text-gray-900 hover:text-blue-600 transition-colors">
+                <span className="text-xl font-bold text-gray-900">TrustLend</span>
+              </Link>
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-sm text-gray-500">Connected: {formatPublicKey(publicKey)}</div>

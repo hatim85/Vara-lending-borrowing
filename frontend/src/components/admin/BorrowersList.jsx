@@ -84,7 +84,7 @@ export default function BorrowersList({ onLiquidateSuccess }) {
                 return (
                   <tr
                     key={actorHex}
-                    className={!safe ? 'bg-yellow-500' : ''}
+                    className={!safe ? 'bg-white' : ''}
                   >
                     <td className="px-3 py-1 font-mono break-all">{actorHex}</td>
                     <td className="px-3 py-1 text-right">

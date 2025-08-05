@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import { useProgram } from "../../contexts/ProgramContext"
 import { useNavigate } from "react-router-dom"
@@ -10,9 +8,20 @@ import { formatHealthFactor, fromTvara } from "../../utils/conversions"
 import { ArrowUpRight, TrendingUp, Shield, AlertTriangle, LogOut } from "lucide-react"
 import LoadingOverlay from "../common/LoadingOverlay"
 import Button from "../common/Button"
+import TransactionModal from "../common/TransactionModal"
 
 export default function BorrowerDashboard() {
-  const { account, publicKey, functions, txState, disconnectWallet, setDisconnectCallback } = useProgram()
+  const {
+    account,
+    publicKey,
+    functions,
+    txState,
+    disconnectWallet,
+    setDisconnectCallback,
+    transactionResult,
+    clearTransactionResult,
+    isWalletLoading,
+  } = useProgram()
   const [ui, setUi] = useState(null)
   const [lastUpdate, setLastUpdate] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -25,12 +34,12 @@ export default function BorrowerDashboard() {
     })
   }, [navigate, setDisconnectCallback])
 
-  // Redirect to dashboard if wallet is disconnected
+  // Only redirect if wallet loading is complete and no account
   useEffect(() => {
-    if (!account) {
+    if (!isWalletLoading && !account) {
       navigate("/dashboard")
     }
-  }, [account, navigate])
+  }, [account, navigate, isWalletLoading])
 
   const refresh = async () => {
     if (!account) return
@@ -47,8 +56,10 @@ export default function BorrowerDashboard() {
   }
 
   useEffect(() => {
-    refresh()
-  }, [account, txState.lastMsg, functions])
+    if (account && !isWalletLoading) {
+      refresh()
+    }
+  }, [account, txState.lastMsg, functions, isWalletLoading])
 
   const getHealthFactorStatus = (hf, debt) => {
     // If there's no debt, the position is safe regardless of health factor
@@ -83,8 +94,15 @@ export default function BorrowerDashboard() {
     return `${pubKey.slice(0, 6)}...${pubKey.slice(-4)}`
   }
 
-  if (loading) {
+  // Show loading while wallet is being restored or data is loading
+  if (isWalletLoading || (loading && account)) {
     return <LoadingOverlay message="Loading borrower dashboard..." />
+  }
+
+  // Don't render anything if no account and wallet loading is complete
+  // The useEffect will handle navigation
+  if (!account) {
+    return null
   }
 
   return (
@@ -338,6 +356,8 @@ export default function BorrowerDashboard() {
           </div>
         </div>
       </div>
+      {/* Transaction Modal */}
+      <TransactionModal isOpen={!!transactionResult} onClose={clearTransactionResult} transaction={transactionResult} />
     </div>
   )
 }

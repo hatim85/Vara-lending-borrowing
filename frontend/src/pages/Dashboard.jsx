@@ -1,58 +1,105 @@
-"use client"
-
-// src/pages/Dashboard.jsx
 import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { useProgram } from "../contexts/ProgramContext"
 import LoadingOverlay from "../components/common/LoadingOverlay"
 import OnboardingScreen from "./Onboarding"
 import Button from "../components/common/Button"
 import { Wallet, Shield, AlertCircle, CheckCircle } from "lucide-react"
 
+// Add localStorage key for admin status
+const ADMIN_STATUS_KEY = "trustlend_admin_status"
+
 export default function Dashboard() {
-  const { account, publicKey, connectWallet, functions, txState, isInitialized } = useProgram()
+  const { account, publicKey, connectWallet, functions, txState, isInitialized, isWalletLoading } = useProgram()
   const [isAdmin, setIsAdmin] = useState(false)
   const [loadingAdmin, setLoadingAdmin] = useState(false)
   const [connectionError, setConnectionError] = useState(null)
   const [adminCheckComplete, setAdminCheckComplete] = useState(false)
   const navigate = useNavigate()
 
-  // Check admin status only once when account changes
+  // Load admin status from localStorage on component mount
   useEffect(() => {
-    if (!account || !isInitialized) {
-      setIsAdmin(false)
-      setAdminCheckComplete(true)
+    if (account && publicKey) {
+      try {
+        const storedAdminStatus = localStorage.getItem(ADMIN_STATUS_KEY)
+        if (storedAdminStatus) {
+          const { account: storedAccount, isAdmin: storedIsAdmin, timestamp } = JSON.parse(storedAdminStatus)
+          // Check if the stored status is for the current account and not too old (5 minutes)
+          if (storedAccount === account && Date.now() - timestamp < 5 * 60 * 1000) {
+            setIsAdmin(storedIsAdmin)
+            setAdminCheckComplete(true)
+            console.log("Admin status restored from localStorage:", storedIsAdmin)
+            return
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load admin status from localStorage:", error)
+      }
+    }
+  }, [account, publicKey])
+
+  // Check admin status only once when account changes and not already loaded from storage
+  useEffect(() => {
+    if (!account || !isInitialized || !functions.getAdmin || isWalletLoading || adminCheckComplete) {
+      if (!account) {
+        setIsAdmin(false)
+        setAdminCheckComplete(true)
+      }
       return
     }
 
-    // Only check admin if we haven't checked yet or account changed
-    if (!adminCheckComplete) {
-      ;(async () => {
-        setLoadingAdmin(true)
-        try {
-          const adminId = await functions.getAdmin()
-          if (adminId) {
-            const fromHex = adminId.toString().toLowerCase()
-            const walletHex = publicKey?.toLowerCase()
-            setIsAdmin(walletHex && walletHex === fromHex)
-          } else {
-            setIsAdmin(false)
-          }
-        } catch (err) {
-          console.error("Failed admin fetch", err)
-          setConnectionError("Failed to verify admin status")
-          setIsAdmin(false)
-        } finally {
-          setLoadingAdmin(false)
-          setAdminCheckComplete(true)
-        }
-      })()
-    }
-  }, [account, publicKey, functions, isInitialized, adminCheckComplete])
+    const checkAdmin = async () => {
+      setLoadingAdmin(true)
+      try {
+        // Add a small delay to ensure the connection is stable
+        await new Promise((resolve) => setTimeout(resolve, 300))
 
-  // Reset admin check when account changes
+        const adminId = await functions.getAdmin()
+        if (adminId) {
+          const fromHex = adminId.toString().toLowerCase()
+          const walletHex = publicKey?.toLowerCase()
+          const isAdminUser = walletHex && walletHex === fromHex
+          setIsAdmin(isAdminUser)
+
+          // Save admin status to localStorage
+          try {
+            const adminStatusData = {
+              account,
+              isAdmin: isAdminUser,
+              timestamp: Date.now(),
+            }
+            localStorage.setItem(ADMIN_STATUS_KEY, JSON.stringify(adminStatusData))
+          } catch (error) {
+            console.error("Failed to save admin status to localStorage:", error)
+          }
+
+          console.log("Dashboard admin check:", { fromHex, walletHex, isAdminUser })
+        } else {
+          setIsAdmin(false)
+        }
+      } catch (err) {
+        console.error("Failed admin fetch", err)
+        setConnectionError("Failed to verify admin status")
+        setIsAdmin(false)
+      } finally {
+        setLoadingAdmin(false)
+        setAdminCheckComplete(true)
+      }
+    }
+
+    checkAdmin()
+  }, [account, publicKey, functions, isInitialized, isWalletLoading, adminCheckComplete])
+
+  // Clear admin status when account changes
   useEffect(() => {
     setAdminCheckComplete(false)
+    setIsAdmin(false)
+    // Clear stored admin status when account changes
+    try {
+      localStorage.removeItem(ADMIN_STATUS_KEY)
+    } catch (error) {
+      console.error("Failed to clear admin status from localStorage:", error)
+    }
   }, [account])
 
   const handleConnect = async () => {
@@ -64,8 +111,8 @@ export default function Dashboard() {
     }
   }
 
-  // Show loading while initializing
-  if (!isInitialized) {
+  // Show loading while initializing or wallet is loading
+  if (!isInitialized || isWalletLoading) {
     return <LoadingOverlay message="Initializing application..." />
   }
 
@@ -86,10 +133,12 @@ export default function Dashboard() {
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
                   <span className="text-white font-bold text-sm">T</span>
                 </div>
-                <span className="text-xl font-bold text-gray-900">TrustLend</span>
+                <Link to="/" className="text-gray-900 hover:text-blue-600 transition-colors">
+                  <span className="text-xl font-bold text-gray-900">TrustLend</span>
+                </Link>
               </div>
               <div className="flex items-center space-x-4">
-                <button onClick={() => navigate("/")} className="text-gray-600 hover:text-gray-900 transition-colors">
+                <button onClick={() => navigate("/")} className="text-white transition-colors">
                   Back to Home
                 </button>
               </div>
@@ -134,7 +183,7 @@ export default function Dashboard() {
                 <div className="space-y-2">
                   <div className="flex items-center space-x-3 text-sm text-gray-600">
                     <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span>Polkadot.js browser extension</span>
+                    <span>Subwallet browser extension</span>
                   </div>
                   <div className="flex items-center space-x-3 text-sm text-gray-600">
                     <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -145,16 +194,6 @@ export default function Dashboard() {
                     <span>Sufficient balance for transactions</span>
                   </div>
                 </div>
-              </div>
-
-              {/* Help Link */}
-              <div className="mt-6 pt-4 border-t border-gray-100">
-                <p className="text-sm text-gray-500">
-                  Need help?{" "}
-                  <a href="#" className="text-blue-600 hover:text-blue-700 font-medium">
-                    Installation Guide
-                  </a>
-                </p>
               </div>
             </div>
 
