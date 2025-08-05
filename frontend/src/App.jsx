@@ -7,13 +7,15 @@ import Dashboard from './pages/Dashboard';
 import BorrowerDashboard from './components/borrower/BorrowerDashboard';
 import LenderDashboard from './components/lender/LenderDashboard';
 import AdminPanel from './components/admin/AdminPanel';
+import LandingPage from './pages/LandingPage';
 
 export default function App() {
   return (
     <ProgramProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/dashboard" element={<Dashboard />} />
 
           <Route path="/lend" element={<LenderDashboard />} />
           <Route path="/borrow" element={<BorrowerDashboard />} />

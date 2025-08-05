@@ -17,13 +17,13 @@ export default function BorrowersTable({ borrowers = {} }) {
     return { actorHex, collateral: ui.collateral, debt: ui.debt, hfLabel };
   });
 
-  if (!rows.length) return <Card>No borrowers found.</Card>;
+  if (!rows.length) return <Card className='text-black'>No borrowers found.</Card>;
 
   return (
-    <Card className="overflow-auto">
+    <Card className="overflow-auto text-black">
       <h2 className="text-xl font-semibold mb-4">All Borrowers</h2>
       <table className="min-w-full table-fixed border-collapse divide-y">
-        <thead className="bg-gray-100 dark:bg-gray-900">
+        <thead className="bg-gray-100 text-black">
           <tr>
             <th className="px-3 py-2 text-left">Actor ID</th>
             <th className="px-3 py-2 text-right">Collateral</th>
@@ -33,7 +33,7 @@ export default function BorrowersTable({ borrowers = {} }) {
         </thead>
         <tbody>
           {rows.map(({ actorHex, collateral, debt, hfLabel }) => (
-            <tr key={actorHex} className="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800">
+            <tr key={actorHex} className="border-b dark:border-gray-800">
               <td className="px-3 py-1 font-mono break-all">{actorHex}</td>
               <td className="px-3 py-1 text-right">{fromTvara(collateral)}</td>
               <td className="px-3 py-1 text-right">{fromTvara(debt)}</td>

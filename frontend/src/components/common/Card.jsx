@@ -1,5 +1,23 @@
-// Generic card container with optional footer slot
-import React from 'react';
+// // Generic card container with optional footer slot
+// import React from 'react';
+
+// /**
+//  * Props:
+//  *   - className: custom Tailwind classes
+//  *   - children: content
+//  *   - footer: optional JSX
+//  */
+// export default function Card({ className = '', children, footer = null }) {
+//   return (
+//     <div
+//       className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm p-4 ${className}`}
+//     >
+//       <div className="space-y-4">{children}</div>
+//       {footer && <div className="mt-4 border-t pt-3">{footer}</div>}
+//     </div>
+//   );
+// }
+
 
 /**
  * Props:
@@ -7,13 +25,13 @@ import React from 'react';
  *   - children: content
  *   - footer: optional JSX
  */
-export default function Card({ className = '', children, footer = null }) {
+export default function Card({ className = "", children, footer = null }) {
   return (
     <div
-      className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm p-4 ${className}`}
+      className={`bg-white border border-gray-200 rounded-2xl shadow-lg hover:shadow-xl transition-shadow p-6 ${className}`}
     >
       <div className="space-y-4">{children}</div>
-      {footer && <div className="mt-4 border-t pt-3">{footer}</div>}
+      {footer && <div className="mt-6 pt-4 border-t border-gray-100">{footer}</div>}
     </div>
-  );
+  )
 }
