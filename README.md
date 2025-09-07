@@ -1,5 +1,7 @@
 # TrustLend
 
+<img width="1440" height="762" alt="TrustLend" src="https://github.com/user-attachments/assets/61d67b37-0b3b-41b3-9e0a-8ac14a638109" />
+
 A decentralized, trust-minimized peer-to-peer lending DApp deployed on the Vara testnet. Borrow TVARA-backed loans, lend liquidity for yield, and manage risks with real-time health checks and admin controls.
 
 ---
