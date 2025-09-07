@@ -72,13 +72,13 @@ TrustLend Protocol enables secure over-collateralized lending:
 ### Running Locally
 
 ```bash
-git clone <your-repo-url>
-cd tvara-lending-dapp
+git clone https://github.com/hatim85/Vara-lending-borrowing
+cd Vara-lending-borrowing
 npm install       # or yarn install
 npm run dev       # or yarn dev
 ````
 
-Open `http://localhost:3000` and connect your wallet to interact as borrower, lender, or admin.
+Open `http://localhost:5173` and connect your wallet to interact as borrower, lender, or admin.
 
 ---
 
